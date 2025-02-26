@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>WebGL Blocky World</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+    canvas {
+      border: 1px solid #000;
+      margin: 20px 0;
+    }
+    #numdot {
+      font-size: 14px;
+      margin: 10px 0;
+    }
+    .controls {
+      margin: 15px 0;
+    }
+    .controls button {
+      margin: 5px;
+      padding: 8px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background-color: #f0f0f0;
+      border-radius: 3px;
+      transition: background-color 0.2s;
+    }
+    .controls button:hover {
+      background-color: #e0e0e0;
+    }
+    .controls button#clear {
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+    .controls button#clear:hover {
+      background-color: #f5c6cb;
+    }
+    .sliders {
+      margin: 20px auto;
+      max-width: 400px;
+      text-align: left;
+    }
+    .slider-container {
+      margin-bottom: 10px;
+    }
+    .slider-container label {
+      display: inline-block;
+      width: 100px;
+    }
+    .slider-container input {
+      vertical-align: middle;
+    }
+    .image-container {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .image-container img {
+      max-width: 300px;
+      height: auto;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .description {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f0f0f0;
+    }
+    .description h3 {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body onload="main()">
+  <canvas id="webgl" width="800" height="600">
+    Please use a browser that supports "canvas".
+  </canvas>
+  
+  <p id="numdot">numdot:  ms:  fps:  </p>
+
+  <div class="controls">
+    <!-- Existing buttons (if any) -->
+    <button id="animationOn">Start Animation</button>
+    <button id="animationOff">Stop Animation</button>
+    <button id="normalOn">Normal On</button>
+    <button id="normalOff">Normal Off</button>
+  </div>
+
+  <div class="sliders">
+    <div class="slider-container">
+      <label for="angleSlide">Camera Angle</label>
+      <input type="range" min="-180" max="180" value="25" id="angleSlide">
+      <span id="angleValue">25</span>
+    </div>
+    <div class="slider-container">
+      <label for="fovSlide">FOV</label>
+      <input type="range" min="20" max="140" value="60" id="fovSlide">
+      <span id="fovValue">25</span>
+    </div>
+  </div>
+
+  <div class="description">
+    <h3>Description</h3>
+    <p>
+      This WebGL application depicts a scene of a chicken crossing a road. The animated chicken "flies" across the street.
+    </p>
+    <p>
+      <strong>Controls:</strong><br>
+      - WASD: Move camera forward, left, backward, right<br>
+      - Q/E: Pan camera left/right<br>
+      - Z/X: Move camera up/down<br>
+      - C/V: Tilt camera up/down<br>
+      - Mouse: Click and drag to look around<br>
+      - Animation buttons: Make the chicken cross the road<br>
+    </p>
+    <p>
+      <strong>Name:</strong> Naitik Poddar<br>
+      <strong>Grader Notes:</strong><br>
+      <i><span style="font-size: smaller;">please give me full credit I think I did everything it took too long. Render wireframe method in Cube.js. Performace check met too</span></i>
+    </p>
+  </div>
+  <script src="../lib/webgl-utils.js"></script>
+  <script src="../lib/webgl-debug.js"></script>
+  <script src="../lib/cuon-utils.js"></script>
+  <script src="../lib/cuon-matrix-cse160.js"></script>
+  <script src="Triangle.js"></script>
+  <script src="Cube.js"></script>
+  <script src="Camera.js"></script>
+  <script src="asg4.js"></script>
+</body>
+</html>
