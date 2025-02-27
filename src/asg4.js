@@ -4,16 +4,22 @@ var VSHADER_SOURCE = `
   attribute vec4 a_Position;
   attribute vec2 a_UV;
   attribute vec3 a_Normal;
+
   varying vec2 v_UV;
   varying vec3 v_Normal;
+  varying vec4 v_VertPos;
+
   uniform mat4 u_ModelMatrix;
   uniform mat4 u_GlobalRotateMatrix;
   uniform mat4 u_ViewMatrix;
   uniform mat4 u_ProjectionMatrix;
+  uniform mat4 u_NormalMatrix;
+
   void main() {
     gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
     v_UV = a_UV; 
-    v_Normal = a_Normal;
+    v_Normal = normalize(vec3(u_NormalMatrix * vec4(a_Normal, 1.0)));
+    v_VertPos = u_ModelMatrix * a_Position;
   }`
 
 // Fragment shader program
@@ -21,6 +27,8 @@ var FSHADER_SOURCE =`
   precision mediump float;
   varying vec2 v_UV;
   varying vec3 v_Normal;
+  varying vec4 v_VertPos;
+
   uniform vec4 u_FragColor;
   uniform sampler2D u_Sampler0;
   uniform sampler2D u_Sampler1;
@@ -28,6 +36,10 @@ var FSHADER_SOURCE =`
   uniform sampler2D u_Sampler3;
   uniform sampler2D u_Sampler4;
   uniform int u_whichTexture;
+  uniform vec3 u_lightPos;
+  uniform vec3 u_cameraPos;
+  uniform bool u_lightON;
+
   void main() {
     if (u_whichTexture == -3) {                     // Use normal color
       gl_FragColor = vec4((v_Normal + 1.0) / 2.0, 1.0);
@@ -48,6 +60,40 @@ var FSHADER_SOURCE =`
     } else {                                        // Redish for error
       gl_FragColor = vec4(1.0, 0.2, 0.2, 1.0);
     }
+
+    vec3 lightVector = u_lightPos - vec3(v_VertPos);
+    float r = length(lightVector);
+
+    // if (r < 1.2) {
+    //   gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    // } else if (r < 2.0) {
+    //   gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+    // }
+
+    // gl_FragColor = vec4(vec3(gl_FragColor) / (r * r), 1.0);
+
+    // N dot L
+    vec3 L = normalize(lightVector);
+    vec3 N = normalize(v_Normal);
+    float nDotL = max(dot(N, L), 0.0);
+
+    // Reflection
+    vec3 R = reflect(-L, N);
+
+    // Eye
+    vec3 E = normalize(u_cameraPos - vec3(v_VertPos));
+
+    // Specular
+    float specular = pow(max(dot(R, E), 0.0), 20.0) * 0.9;
+    
+    vec3 diffuse = vec3(gl_FragColor) * nDotL * 0.7;
+    vec3 ambient = vec3(gl_FragColor) * 0.25;
+    if (u_lightON) {
+      gl_FragColor = vec4(specular + diffuse + ambient, 1.0);
+    } else {
+        // No lighting at all
+        gl_FragColor = vec4(diffuse + ambient, 1.0);
+    }
   }`
 
 // Global variables
@@ -61,13 +107,16 @@ let u_ModelMatrix;
 let u_GlobalRotateMatrix;
 let u_ViewMatrix;
 let u_ProjectionMatrix;
+let u_NormalMatrix;
 let u_Sampler0;
 let u_Sampler1;
 let u_Sampler2;
 let u_Sampler3;
 let u_Sampler4;
 let u_whichTexture;
+let u_lightPos;
 let g_selectedBlockType = 1;
+let u_cameraPos;
 
 function setupWebGL() {
   // Retrieve <canvas> element
@@ -140,6 +189,12 @@ function connectVariablesToGLSL() {
     return;
   }
 
+  u_NormalMatrix = gl.getUniformLocation(gl.program, 'u_NormalMatrix');
+  if (!u_NormalMatrix) {
+    console.log('Failed to get the storage location of u_NormalMatrix');
+    return;
+  }
+
   u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
   if (!u_Sampler0) {
     console.log('Failed to get the storage location of u_Sampler');
@@ -176,6 +231,24 @@ function connectVariablesToGLSL() {
     return false;
   }
 
+  u_lightPos = gl.getUniformLocation(gl.program, 'u_lightPos');
+  if (!u_lightPos) {
+    console.log('Failed to get the storage location of u_lightPos');
+    return false;
+  }
+
+  u_cameraPos = gl.getUniformLocation(gl.program, 'u_cameraPos');
+  if (!u_cameraPos) {
+    console.log('Failed to get the storage location of u_cameraPos');
+    return false;
+  }
+
+  u_lightON = gl.getUniformLocation(gl.program, 'u_lightON');
+  if (!u_lightON) {
+    console.log('Failed to get the storage location of u_lightON');
+    return false;
+  }
+
   var identityMatrix = new Matrix4();
   gl.uniformMatrix4fv(u_ModelMatrix, false, identityMatrix.elements);
 }
@@ -197,24 +270,19 @@ let g_leftArmAngle = 135; // left arm rotation angle
 let anim = false; // animation flag
 let camera;
 let g_normalOn = false; // normal vector flag
+let g_lightPos = [0, 1, 1.1];
+let g_lightON = true;
 
 // Actions for HTML UI
 function addActionsforHtmlUI(){
 
-  var audio = new Audio('chickenSfx.mp3');
-  audio.loop = true;
-
   // Animation Button Events
   document.getElementById('animationOn').onclick = function() {
-    anim = true;
-    audio.play();
+    anim = true;  
   };
   document.getElementById('animationOff').onclick = function() {
     anim = false; 
-    g_chickenY = 0; 
     renderAllShapes(); 
-    audio.pause();
-    audio.currentTime = 0;
   };
 
   // Normal Vector Button Events
@@ -225,6 +293,15 @@ function addActionsforHtmlUI(){
   document.getElementById('normalOff').onclick = function() {
     g_normalOn = false;
     renderAllShapes();
+  }
+
+  // Light Button Events
+  document.getElementById('lightOn').onclick = function() {
+    g_lightON = true;
+  }
+
+  document.getElementById('lightOff').onclick = function() {
+    g_lightON = false;
   }
 
 
@@ -246,7 +323,31 @@ function addActionsforHtmlUI(){
     fovDisplay.textContent = this.value;
   });
 
+  // Light Position Slider Events
+  const lightSlider = document.getElementById('lightXSlide');
+  const lightDisplay = document.getElementById('lightXValue');
+  lightSlider.addEventListener('mousemove', function() {
+    g_lightPos[0] = this.value/100;
+    renderAllShapes();
+    lightDisplay.textContent = this.value/100;
+  });
 
+  const lightSliderY = document.getElementById('lightYSlide');
+  const lightDisplayY = document.getElementById('lightYValue');
+  lightSliderY.addEventListener('mousemove', function() {
+    g_lightPos[1] = this.value/100;
+    renderAllShapes();
+    lightDisplayY.textContent = this.value/100;
+  });
+
+  const lightSliderZ = document.getElementById('lightZSlide');
+  const lightDisplayZ = document.getElementById('lightZValue');
+  lightSliderZ.addEventListener('mousemove', function() {
+    g_lightPos[2] = this.value/100;
+    renderAllShapes();
+    lightDisplayZ.textContent = this.value/100;
+  });
+  
 }
 
 function addKeyboardEvents() {
@@ -567,8 +668,6 @@ function tick() {
 
   if (anim){
     updateAnimationAngles();
-    g_chickenZ += 0.03;
-    g_chickenY = 0.75 + 0.5 * (Math.sin(g_seconds));
   }
   renderAllShapes();
   requestAnimationFrame(tick);
@@ -576,14 +675,7 @@ function tick() {
 
 function updateAnimationAngles() {
   
-  // Animation for the head angle (-10 to 20 degrees)
-  g_headAngle = -10 + 15 * Math.sin(g_seconds * 2); // Oscillates between -10 and 20
-
-  // Animation for the right arm angle (220 to 245 degrees)
-  g_rightArmAngle = 220 + 12.5 * Math.sin(g_seconds * 3); // Oscillates between 220 and 245
-
-  // Animation for the left arm angle (110 to 130 degrees)
-  g_leftArmAngle = 110 + 10 * Math.sin(g_seconds * 3); // Oscillates between 110 and 130
+  g_lightPos[0] = Math.cos(g_seconds);
 
 }
 
@@ -615,6 +707,7 @@ function drawChicken(parentMatrix) {
   var bodyCoordinates = new Matrix4(body.matrix);
   body.matrix.scale(0.5, 0.6, 0.75);
   body.matrix.translate(-0.5, 0.0, 0.0);
+  body.normalMatrix.setInverseOf(body.matrix).transpose();
   body.render();
 
   // Head
@@ -627,6 +720,7 @@ function drawChicken(parentMatrix) {
   head.matrix.translate(0.0, 0.0, -0.2);
   var headCoordinates = new Matrix4(head.matrix);
   head.matrix.scale(0.5, 0.5, 0.5);
+  head.normalMatrix.setInverseOf(head.matrix).transpose();
   head.render();
 
   // Body Back
@@ -636,6 +730,7 @@ function drawChicken(parentMatrix) {
   bodyBack.matrix = new Matrix4(bodyCoordinates); // Attach to body
   bodyBack.matrix.scale(0.4, 0.55, 0.2);
   bodyBack.matrix.translate(-0.5, 0.05, 3.75);
+  bodyBack.normalMatrix.setInverseOf(bodyBack.matrix).transpose();
   bodyBack.render();
 
   // Right Eye
@@ -645,6 +740,7 @@ function drawChicken(parentMatrix) {
   rightEye.matrix = new Matrix4(headCoordinates); // Attach to head
   rightEye.matrix.translate(0.5, 0.25, 0.1);
   rightEye.matrix.scale(0.05, 0.1, 0.1);
+  rightEye.normalMatrix.setInverseOf(rightEye.matrix).transpose();
   rightEye.render();
 
   // Left Eye
@@ -654,6 +750,7 @@ function drawChicken(parentMatrix) {
   leftEye.matrix = new Matrix4(headCoordinates); // Attach to head
   leftEye.matrix.translate(-0.05, 0.25, 0.1);
   leftEye.matrix.scale(0.05, 0.1, 0.1);
+  leftEye.normalMatrix.setInverseOf(leftEye.matrix).transpose();
   leftEye.render();
 
   // Comb
@@ -663,6 +760,7 @@ function drawChicken(parentMatrix) {
   comb.matrix = new Matrix4(headCoordinates); // Attach to head
   comb.matrix.scale(0.1, 0.18, 0.3);
   comb.matrix.translate(2.0, 2.8, 0.25);
+  comb.normalMatrix.setInverseOf(comb.matrix).transpose();
   comb.render();
 
   // Beak Top
@@ -672,6 +770,7 @@ function drawChicken(parentMatrix) {
   beakTop.matrix = new Matrix4(headCoordinates); // Attach to head
   beakTop.matrix.scale(0.08, 0.1, 0.12);
   beakTop.matrix.translate(2.5, 1.5, -1.0);
+  beakTop.normalMatrix.setInverseOf(beakTop.matrix).transpose();
   beakTop.render();
 
   // Beak Bottom
@@ -681,6 +780,7 @@ function drawChicken(parentMatrix) {
   beakBottom.matrix = new Matrix4(headCoordinates); // Attach to head
   beakBottom.matrix.scale(0.08, 0.08, 0.08);
   beakBottom.matrix.translate(2.5, 0.85, -1.0);
+  beakBottom.normalMatrix.setInverseOf(beakBottom.matrix).transpose();
   beakBottom.render();
 
   // Right Arm
@@ -691,6 +791,7 @@ function drawChicken(parentMatrix) {
   rightArm.matrix.translate(0.25, 0.5, 0.1);
   rightArm.matrix.rotate(g_rightArmAngle, 0, 0, 1);
   rightArm.matrix.scale(0.2, 0.5, 0.5);
+  rightArm.normalMatrix.setInverseOf(rightArm.matrix).transpose();
   rightArm.render();
 
   // Left Arm
@@ -702,6 +803,7 @@ function drawChicken(parentMatrix) {
   leftArm.matrix.translate(-0.1, 0.4, 0.1);
   leftArm.matrix.rotate(g_leftArmAngle, 0, 0, 1);
   leftArm.matrix.scale(0.2, 0.5, 0.5);
+  leftArm.normalMatrix.setInverseOf(leftArm.matrix).transpose();
   leftArm.render();
 
   // Right Leg Top
@@ -711,6 +813,7 @@ function drawChicken(parentMatrix) {
   rightLegTop.matrix = new Matrix4(bodyCoordinates); // Attach to body
   rightLegTop.matrix.scale(0.05, 0.1, 0.05);
   rightLegTop.matrix.translate(1.0, -1.0, 5.0);
+  rightLegTop.normalMatrix.setInverseOf(rightLegTop.matrix).transpose();
   var rightLegCoordinates = new Matrix4(rightLegTop.matrix);
   rightLegTop.render();
 
@@ -721,6 +824,7 @@ function drawChicken(parentMatrix) {
   rightLegBottom.matrix = new Matrix4(rightLegCoordinates);
   rightLegBottom.matrix.scale(1.5, 0.4, 2.0);
   rightLegBottom.matrix.translate(-0.15, -1.0, -0.5);
+  rightLegBottom.normalMatrix.setInverseOf(rightLegBottom.matrix).transpose();
   rightLegBottom.render();
 
   // Left Leg Top
@@ -730,6 +834,7 @@ function drawChicken(parentMatrix) {
   leftLegTop.matrix = new Matrix4(bodyCoordinates); // Attach to body
   leftLegTop.matrix.scale(0.05, 0.1, 0.05);
   leftLegTop.matrix.translate(-2.5, -1.0, 5.0);
+  leftLegTop.normalMatrix.setInverseOf(leftLegTop.matrix).transpose();
   var leftLegCoordinates = new Matrix4(leftLegTop.matrix);
   leftLegTop.render();
 
@@ -740,6 +845,7 @@ function drawChicken(parentMatrix) {
   leftLegBottom.matrix = new Matrix4(leftLegCoordinates);
   leftLegBottom.matrix.scale(1.5, 0.4, 2.0);
   leftLegBottom.matrix.translate(-0.15, -1.0, -0.5);
+  leftLegBottom.normalMatrix.setInverseOf(leftLegBottom.matrix).transpose();
   leftLegBottom.render();
 }
 
@@ -765,21 +871,46 @@ function renderAllShapes(){
   var floor = new Cube();
   floor.color = [.76, .70, .50, 1];
   floor.textureNum = -2;
-  floor.matrix.translate(0.0, -0.75, 0.0);
+  floor.matrix.translate(-5.0, -0.75, -5.0);
   floor.matrix.scale(10.0, 0.00, 10.0);
-  floor.matrix.translate(-0.5, 0.0, -0.5);
-  floor.renderfast();
+  // floor.matrix.translate(-0.5, 0.0, -0.5);
+  floor.render();
 
   // Sky
   var sky = new Cube();
-  //maroon color dark red
   sky.color = [0.3, 0.0, 0.3, 1.0];
   if (g_normalOn) {sky.textureNum = -3;}
-  // sky.matrix.translate(0,0,2);
   sky.matrix.scale(-7,-7,-7);
   sky.matrix.rotate(180, 0, 0, 1);
   sky.matrix.translate(-.5,-.5,-.5);
   sky.render();
+
+  gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2]);
+  gl.uniform3f(u_cameraPos, camera.eye.elements[0], camera.eye.elements[1], camera.eye.elements[2]);
+  gl.uniform1i(u_lightON, g_lightON);
+
+  // Light
+  var light = new Cube();
+  light.color = [2, 2, 0, 1];
+  light.matrix.translate(g_lightPos[0], g_lightPos[1], g_lightPos[2]);
+  light.matrix.scale(-0.1, -0.1, -0.1);
+  light.matrix.translate(-0.5, -0.5, -0.5);
+  light.render();
+
+  // Sphere
+  var sphere = new Sphere();
+  sphere.color = [1.0, 0.0, 0.0, 1.0];
+  sphere.matrix.translate(1, 0, 2);
+  sphere.matrix.scale(0.5, 0.5, 0.5);
+  if (g_normalOn) {sphere.textureNum = -3;}
+  sphere.render();
+
+  // Cube
+  var cube = new Cube();
+  cube.color = [0.0, 1.0, 0.0, 1.0];
+  cube.matrix.translate(-2, -0.5, 2);
+  if (g_normalOn) {cube.textureNum = -3;}
+  cube.render();
 
   // Draw the chicken
   var chickenMatrix = new Matrix4();

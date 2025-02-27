@@ -80,7 +80,7 @@
   </style>
 </head>
 <body onload="main()">
-  <canvas id="webgl" width="800" height="600">
+  <canvas id="webgl" width="1200" height="800">
     Please use a browser that supports "canvas".
   </canvas>
   
@@ -92,6 +92,8 @@
     <button id="animationOff">Stop Animation</button>
     <button id="normalOn">Normal On</button>
     <button id="normalOff">Normal Off</button>
+    <button id="lightOn">Light On</button>
+    <button id="lightOff">Light Off</button>
   </div>
 
   <div class="sliders">
@@ -104,6 +106,21 @@
       <label for="fovSlide">FOV</label>
       <input type="range" min="20" max="140" value="60" id="fovSlide">
       <span id="fovValue">25</span>
+    </div>
+    <div class="slider-container">
+      <label for="lightXSlide">Light X</label>
+      <input type="range" min="-250" max="250" value="0" id="lightXSlide">
+      <span id="lightXValue">0</span>
+    </div>
+    <div class="slider-container">
+      <label for="lightYSlide">Light Y</label>
+      <input type="range" min="-250" max="250" value="100" id="lightYSlide">
+      <span id="lightYValue">1</span>
+    </div>
+    <div class="slider-container">
+      <label for="lightZSlide">Light Z</label>
+      <input type="range" min="-250" max="250" value="110" id="lightZSlide">
+      <span id="lightZValue">1.1</span>
     </div>
   </div>
 
@@ -133,6 +150,7 @@
   <script src="../lib/cuon-matrix-cse160.js"></script>
   <script src="Triangle.js"></script>
   <script src="Cube.js"></script>
+  <script src="Sphere.js"></script>
   <script src="Camera.js"></script>
   <script src="asg4.js"></script>
 </body>

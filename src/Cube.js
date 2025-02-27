@@ -4,6 +4,7 @@ class Cube{
         this.type       = 'cube';
         this.color      = [1.0,1.0,1.0,1.0];
         this.matrix     = new Matrix4();
+        this.normalMatrix = new Matrix4();
         this.textureNum = -2;
         this.verts = [
             // Front of cube
@@ -58,30 +59,19 @@ class Cube{
             0,0, 1,1, 1,0,  0,0, 0,1, 1,1
         ];
         this.normals = [
-            // Front face normals
-            0, 0, 1, 0, 0, 1, 0, 0, 1,
-            0, 0, 1, 0, 0, 1, 0, 0, 1,
-
-            // Top face normals
-            0, 1, 0, 0, 1, 0, 0, 1, 0,
-            0, 1, 0, 0, 1, 0, 0, 1, 0,
-
-            // Bottom face normals
-            0, -1, 0, 0, -1, 0, 0, -1, 0,
-            0, -1, 0, 0, -1, 0, 0, -1, 0,
-
-            // Left face normals
-            1, 0, 0, 1, 0, 0, 1, 0, 0,
-            1, 0, 0, 1, 0, 0, 1, 0, 0,
-
-            // Right face normals
-            -1, 0, 0, -1, 0, 0, -1, 0, 0,
-            -1, 0, 0, -1, 0, 0, -1, 0, 0,
-
-            // Back face normals
-            0, 0, -1, 0, 0, -1, 0, 0, -1,
-            0, 0, -1, 0, 0, -1, 0, 0, -1
-        ];
+            0,0,-1, 0,0,-1, 0,0,-1,
+            0,0,-1, 0,0,-1, 0,0,-1,
+            0,1,0, 0,1,0, 0,1,0,
+            0,1,0, 0,1,0, 0,1,0,
+            0,-1,0, 0,-1,0, 0,-1,0,
+            0,-1,0, 0,-1,0, 0,-1,0,
+            1,0,0, 1,0,0, 1,0,0,
+            1,0,0, 1,0,0, 1,0,0,
+            -1,0,0, -1,0,0, -1,0,0,
+            -1,0,0, -1,0,0, -1,0,0,
+            0,0,1, 0,0,1, 0,0,1,
+            0,0,1, 0,0,1, 0,0,1
+        ]
     }
 
     // render(){
@@ -110,7 +100,7 @@ class Cube{
 
     //     // Left side of cube
     //     gl.uniform4f(u_FragColor, rgba[0]*.8, rgba[1]*.8, rgba[2]*.8, rgba[3]);
-    //     drawTriangle3DUV([1,0,0,  1,1,1,  1,1,0], [0,0, 1,1, 1,0]);
+    //     drawTriangle3DUV([1,0,0,  1,1,1,  1,1,0], [0,0,   1,1, 1,0]);
     //     drawTriangle3DUV([1,0,0,  1,0,1,  1,1,1], [0,0, 0,1, 1,1]);
 
     //     // Right side of cube
@@ -136,6 +126,9 @@ class Cube{
 
         // Pass the matrix to u_ModelMatrix attribute
         gl.uniformMatrix4fv(u_ModelMatrix, false, this.matrix.elements);
+
+        // Pass the normal matrix to u_NormalMatrix attribute
+        gl.uniformMatrix4fv(u_NormalMatrix, false, this.normalMatrix.elements);
 
         // Draw each face with appropriate normals
         for (let i = 0; i < this.verts.length; i += 9) {
