@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>WebGL Blocky World</title>
+  <title>WebGL Lighting</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -92,8 +92,11 @@
     <button id="animationOff">Stop Animation</button>
     <button id="normalOn">Normal On</button>
     <button id="normalOff">Normal Off</button>
+    <br>
     <button id="lightOn">Light On</button>
     <button id="lightOff">Light Off</button>
+    <button type="button" id="spotlightOn">Spotlight On</button>
+    <button type="button" id="spotlightOff">Spotlight Off</button>
   </div>
 
   <div class="sliders">
@@ -106,6 +109,21 @@
       <label for="fovSlide">FOV</label>
       <input type="range" min="20" max="140" value="60" id="fovSlide">
       <span id="fovValue">25</span>
+    </div>
+    <div class="slider-container">
+      <label for="lightRSlide">Light Red</label>
+      <input type="range" min="0" max="100" value="100" id="lightRSlide">
+      <span id="lightRValue">1.0</span>
+    </div>
+    <div class="slider-container">
+      <label for="lightGSlide">Light Green</label>
+      <input type="range" min="0" max="100" value="100" id="lightGSlide">
+      <span id="lightGValue">1.0</span>
+    </div>
+    <div class="slider-container">
+      <label for="lightBSlide">Light Blue</label>
+      <input type="range" min="0" max="100" value="100" id="lightBSlide">
+      <span id="lightBValue">1.0</span>
     </div>
     <div class="slider-container">
       <label for="lightXSlide">Light X</label>
@@ -122,26 +140,46 @@
       <input type="range" min="-250" max="250" value="110" id="lightZSlide">
       <span id="lightZValue">1.1</span>
     </div>
+    <div class="slider-container">
+      <label for="spotlightXSlide">Spotlight X</label>
+      <input type="range" min="-250" max="250" value="0" id="spotlightXSlide">
+      <span id="spotlightXValue">0</span>
+    </div>
+    <div class="slider-container">
+      <label for="spotlightYSlide">Spotlight Y</label>
+      <input type="range" min="-250" max="250" value="-100" id="spotlightYSlide">
+      <span id="spotlightYValue">-1</span>
+    </div>
+    <div class="slider-container">
+      <label for="spotlightZSlide">Spotlight Z</label>
+      <input type="range" min="-250" max="250" value="0" id="spotlightZSlide">
+      <span id="spotlightZValue">0</span>
+    </div>
+    <div class="slider-container">
+      <label for="spotlightCutoffSlide">Spotlight Cutoff Angle</label>
+      <input type="range" min="0" max="90" value="30" id="spotlightCutoffSlide">
+      <span id="spotlightCutoffValue">30°</span>
+    </div>
+    <div class="slider-container">
+      <label for="spotExponentSlide">Spotlight Exponent:</label>
+      <input type="range" min="0" max="30" value="10" id="spotExponentSlide">
+      <label id="spotExponentValue">10</label>
+    </div>
   </div>
 
   <div class="description">
     <h3>Description</h3>
     <p>
-      This WebGL application depicts a scene of a chicken crossing a road. The animated chicken "flies" across the street.
+      This WebGL application depicts lighting in WebGL.
     </p>
     <p>
-      <strong>Controls:</strong><br>
-      - WASD: Move camera forward, left, backward, right<br>
-      - Q/E: Pan camera left/right<br>
-      - Z/X: Move camera up/down<br>
-      - C/V: Tilt camera up/down<br>
-      - Mouse: Click and drag to look around<br>
-      - Animation buttons: Make the chicken cross the road<br>
-    </p>
-    <p>
-      <strong>Name:</strong> Naitik Poddar<br>
+      <strong>Name:</strong> Naitik Poddar<br><br>
       <strong>Grader Notes:</strong><br>
-      <i><span style="font-size: smaller;">please give me full credit I think I did everything it took too long. Render wireframe method in Cube.js. Performace check met too</span></i>
+      Animation Button controls point light <br>
+      Normal Button enables normal visualisation<br>
+      Light On and Off Controls specular light<br>
+      Spotlight On and Off changes the point light to a spotlight (only when the light is on). The spootlight angle and intensity can be controlled<br>
+      The sliders control the camera angle, field of view, light color, light position, and spotlight position and intensity</p>
     </p>
   </div>
   <script src="../lib/webgl-utils.js"></script>

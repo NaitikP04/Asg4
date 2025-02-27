@@ -40,6 +40,13 @@ var FSHADER_SOURCE =`
   uniform vec3 u_cameraPos;
   uniform bool u_lightON;
 
+  uniform vec3 u_lightColor;
+
+  uniform vec3 u_spotDirection;
+  uniform float u_spotCosineCutoff;
+  uniform float u_spotExponent;
+  uniform bool u_spotlightON;
+
   void main() {
     if (u_whichTexture == -3) {                     // Use normal color
       gl_FragColor = vec4((v_Normal + 1.0) / 2.0, 1.0);
@@ -86,13 +93,31 @@ var FSHADER_SOURCE =`
     // Specular
     float specular = pow(max(dot(R, E), 0.0), 20.0) * 0.9;
     
-    vec3 diffuse = vec3(gl_FragColor) * nDotL * 0.7;
+    // Ambient and Diffuse
+    vec3 diffuse = vec3(gl_FragColor) * u_lightColor * nDotL * 0.7;
     vec3 ambient = vec3(gl_FragColor) * 0.25;
+
+    float spotFactor = 1.0;
+    if (u_spotlightON) {
+      vec3 L = normalize(u_lightPos - vec3(v_VertPos));
+      vec3 D = normalize(u_spotDirection);
+      float spotCosine = dot(D, -L);
+      
+      if (spotCosine >= u_spotCosineCutoff) {
+        spotFactor = pow(spotCosine, u_spotExponent);
+      } else {
+        spotFactor = 0.0;
+      }
+    }
+    
+    // Apply spotlight factor to your final color
     if (u_lightON) {
-      gl_FragColor = vec4(specular + diffuse + ambient, 1.0);
+      vec3 diffuseWithSpot = diffuse * spotFactor;
+      vec3 specularWithSpot = vec3(specular) * spotFactor * u_lightColor;
+      gl_FragColor = vec4(specularWithSpot + diffuseWithSpot + ambient, 1.0);
     } else {
-        // No lighting at all
-        gl_FragColor = vec4(diffuse + ambient, 1.0);
+      // Your existing no-light case
+      gl_FragColor = vec4(diffuse + ambient, 1.0);
     }
   }`
 
@@ -117,6 +142,12 @@ let u_whichTexture;
 let u_lightPos;
 let g_selectedBlockType = 1;
 let u_cameraPos;
+let u_spotDirection;
+let u_spotCosineCutoff;
+let u_spotExponent;
+let u_spotlightON;
+let u_lightColor;
+
 
 function setupWebGL() {
   // Retrieve <canvas> element
@@ -249,6 +280,36 @@ function connectVariablesToGLSL() {
     return false;
   }
 
+  u_spotDirection = gl.getUniformLocation(gl.program, 'u_spotDirection');
+  if (!u_spotDirection) {
+    console.log('Failed to get the storage location of u_spotDirection');
+    return false;
+  }
+
+  u_spotCosineCutoff = gl.getUniformLocation(gl.program, 'u_spotCosineCutoff');
+  if (!u_spotCosineCutoff) {
+    console.log('Failed to get the storage location of u_spotCosineCutoff');
+    return false;
+  }
+
+  u_spotExponent = gl.getUniformLocation(gl.program, 'u_spotExponent');
+  if (!u_spotExponent) {
+    console.log('Failed to get the storage location of u_spotExponent');
+    return false;
+  }
+
+  u_spotlightON = gl.getUniformLocation(gl.program, 'u_spotlightON');
+  if (!u_spotlightON) {
+    console.log('Failed to get the storage location of u_spotlightON');
+    return false;
+  }
+
+  u_lightColor = gl.getUniformLocation(gl.program, 'u_lightColor');
+  if (!u_lightColor) {
+    console.log('Failed to get the storage location of u_lightColor');
+    return false;
+  }
+
   var identityMatrix = new Matrix4();
   gl.uniformMatrix4fv(u_ModelMatrix, false, identityMatrix.elements);
 }
@@ -272,6 +333,11 @@ let camera;
 let g_normalOn = false; // normal vector flag
 let g_lightPos = [0, 1, 1.1];
 let g_lightON = true;
+let g_spotDirection = [0.0, -1.0, 0.0]; 
+let g_spotCosineCutoff = Math.cos(30 * Math.PI / 180); 
+let g_spotExponent = 10.0;
+let g_spotlightON = false;
+let g_lightColor = [1.0, 1.0, 1.0];
 
 // Actions for HTML UI
 function addActionsforHtmlUI(){
@@ -304,6 +370,54 @@ function addActionsforHtmlUI(){
     g_lightON = false;
   }
 
+  // Spotlight Button and Slider Events
+  document.getElementById('spotlightOn').onclick = function() {
+    g_spotlightON = true;
+  }
+
+  document.getElementById('spotlightOff').onclick = function() {
+    g_spotlightON = false;
+  }
+
+  const spotSliderX = document.getElementById('spotlightXSlide');
+  const spotDisplayX = document.getElementById('spotlightXValue');
+  spotSliderX.addEventListener('mousemove', function() {
+    g_spotDirection[0] = this.value/100;
+    renderAllShapes();
+    spotDisplayX.textContent = this.value/100;
+  });
+
+  const spotSliderY = document.getElementById('spotlightYSlide');
+  const spotDisplayY = document.getElementById('spotlightYValue');
+  spotSliderY.addEventListener('mousemove', function() {
+    g_spotDirection[1] = this.value/100;
+    renderAllShapes();
+    spotDisplayY.textContent = this.value/100;
+  });
+
+  const spotSliderZ = document.getElementById('spotlightZSlide');
+  const spotDisplayZ = document.getElementById('spotlightZValue');
+  spotSliderZ.addEventListener('mousemove', function() {
+    g_spotDirection[2] = this.value/100;
+    renderAllShapes();
+    spotDisplayZ.textContent = this.value/100;
+  });
+
+  const spotCutoffSlider = document.getElementById('spotlightCutoffSlide');
+  const spotCutoffDisplay = document.getElementById('spotlightCutoffValue');
+  spotCutoffSlider.addEventListener('mousemove', function() {
+    g_spotCosineCutoff = Math.cos(this.value * Math.PI / 180);
+    renderAllShapes();
+    spotCutoffDisplay.textContent = this.value +  '°';
+  });
+
+  const spotExponentSlider = document.getElementById('spotExponentSlide');
+  const spotExponentDisplay = document.getElementById('spotExponentValue');
+  spotExponentSlider.addEventListener('mousemove', function() {
+    g_spotExponent = this.value;
+    renderAllShapes();
+    spotExponentDisplay.textContent = this.value;
+  });
 
   // Angle Slider Events
   const angleSlider = document.getElementById('angleSlide');
@@ -323,13 +437,38 @@ function addActionsforHtmlUI(){
     fovDisplay.textContent = this.value;
   });
 
+  // Light Color Slider Events
+  const lightColorSliderR = document.getElementById('lightRSlide');
+  const lightColorDisplayR = document.getElementById('lightRValue');
+  lightColorSliderR.addEventListener('mousemove', function() {
+    g_lightColor[0] = this.value/100;
+    renderAllShapes();
+    lightColorDisplayR.textContent = this.value/100;
+  });
+
+  const lightColorSliderG = document.getElementById('lightGSlide');
+  const lightColorDisplayG = document.getElementById('lightGValue');
+  lightColorSliderG.addEventListener('mousemove', function() {
+    g_lightColor[1] = this.value/100;
+    renderAllShapes();
+    lightColorDisplayG.textContent = this.value/100;
+  });
+
+  const lightColorSliderB = document.getElementById('lightBSlide');
+  const lightColorDisplayB = document.getElementById('lightBValue');
+  lightColorSliderB.addEventListener('mousemove', function() {
+    g_lightColor[2] = this.value/100;
+    renderAllShapes();
+    lightColorDisplayB.textContent = this.value/100;
+  });
+
   // Light Position Slider Events
-  const lightSlider = document.getElementById('lightXSlide');
-  const lightDisplay = document.getElementById('lightXValue');
-  lightSlider.addEventListener('mousemove', function() {
+  const lightSliderX = document.getElementById('lightXSlide');
+  const lightDisplayX = document.getElementById('lightXValue');
+  lightSliderX.addEventListener('mousemove', function() {
     g_lightPos[0] = this.value/100;
     renderAllShapes();
-    lightDisplay.textContent = this.value/100;
+    lightDisplayX.textContent = this.value/100;
   });
 
   const lightSliderY = document.getElementById('lightYSlide');
@@ -849,6 +988,24 @@ function drawChicken(parentMatrix) {
   leftLegBottom.render();
 }
 
+function normalizeSpotDirection(direction) {
+  const length = Math.sqrt(
+    direction[0] * direction[0] + 
+    direction[1] * direction[1] + 
+    direction[2] * direction[2]
+  );
+  
+  if (length > 0) {
+    return [
+      direction[0] / length,
+      direction[1] / length,
+      direction[2] / length
+    ];
+  }
+  
+  return [0, -1, 0]; // Default down if zero length
+}
+
 function renderAllShapes(){
 
   // Get start time
@@ -885,9 +1042,16 @@ function renderAllShapes(){
   sky.matrix.translate(-.5,-.5,-.5);
   sky.render();
 
+  gl.uniform3f(u_lightColor, g_lightColor[0], g_lightColor[1], g_lightColor[2]);
   gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2]);
   gl.uniform3f(u_cameraPos, camera.eye.elements[0], camera.eye.elements[1], camera.eye.elements[2]);
   gl.uniform1i(u_lightON, g_lightON);
+
+  const normalizedSpotDir = normalizeSpotDirection(g_spotDirection);
+  gl.uniform3f(u_spotDirection, normalizedSpotDir[0], normalizedSpotDir[1], normalizedSpotDir[2]);
+  gl.uniform1f(u_spotCosineCutoff, g_spotCosineCutoff);
+  gl.uniform1f(u_spotExponent, g_spotExponent);
+  gl.uniform1i(u_spotlightON, g_spotlightON);
 
   // Light
   var light = new Cube();
